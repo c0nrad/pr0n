@@ -4,17 +4,22 @@ type LocalPlayer struct {
 	name  string
 	moves []Move
 	index int
-
-	playerType PlayerType
+	score int
+	alive bool
 }
 
 func NewLocalPlayer(name string, id int) (p *LocalPlayer) {
 	p = new(LocalPlayer)
 	p.moves = []Move{StartingSpots[id]}
 	p.name = name
-	p.playerType = LOCAL
 	p.index = id
+	p.alive = true
 	return p
+}
+
+func (p *LocalPlayer) Reset() {
+	p.alive = true
+	p.moves = []Move{getStartingSpot(p.index)}
 }
 
 func (p *LocalPlayer) NextMove() Move {
@@ -44,6 +49,22 @@ func (p *LocalPlayer) String() string {
 		out += m.String()
 	}
 	return out
+}
+
+func (p *LocalPlayer) Score() int {
+	return p.score
+}
+
+func (p *LocalPlayer) IncScore() {
+	p.score++
+}
+
+func (p *LocalPlayer) Alive() bool {
+	return p.alive
+}
+
+func (p *LocalPlayer) SetAlive(alive bool) {
+	p.alive = alive
 }
 
 func (p *LocalPlayer) Name() string {

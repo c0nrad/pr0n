@@ -39,13 +39,32 @@ var StartingSpots = []Move{
 	Move{ARENA_WIDTH / 2, 3 * ARENA_HEIGHT / 4, UP},
 }
 
+func getStartingSpot(index int) Move {
+	return StartingSpots[index]
+}
+
 type Player interface {
+
+	// Increase players score by one
+	IncScore()
+
+	// Players Score
+	Score() int
+
+	// Clear moves and alive
+	Reset()
 
 	// Return the name of the player
 	Name() string
 
 	// Returns the players index
 	Index() int
+
+	// Is the player still alive
+	Alive() bool
+
+	//
+	SetAlive(alive bool)
 
 	// Return a list of all previous moves
 	Moves() []Move

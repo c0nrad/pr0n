@@ -27,7 +27,7 @@ func readInput() Move {
 			switch ev.Type {
 			case termbox.EventKey:
 				switch ev.Key {
-				case termbox.KeyEsc:
+				case termbox.KeyEsc, 'q', 'Q':
 					os.Exit(0)
 				case termbox.KeyArrowUp:
 					nextMove.d = UP
@@ -103,7 +103,7 @@ func main() {
 	}()
 
 	pss := []Player{p1, p2, p3, p4}
-	g := Game{pss, pss}
+	g := Game{pss}
 
 	waitOnInput()
 	g.play()

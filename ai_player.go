@@ -7,15 +7,25 @@ type AIPlayer struct {
 	moves []Move
 	arena [][]bool
 	index int
+	alive bool
+	score int
 }
 
 func NewAIPlayer(name string, id int) (p *AIPlayer) {
 	p = new(AIPlayer)
-	p.moves = []Move{StartingSpots[id]}
-	p.moves[0].d = UP
-	p.name = name
 	p.index = id
 
+	p.moves = []Move{getStartingSpot(p.index)}
+	p.moves[0].d = UP
+	p.name = name
+	p.alive = true
+
+	p.arena = buildMap()
+
+	return p
+}
+
+func buildMap() [][]bool {
 	arena := make([][]bool, ARENA_WIDTH)
 
 	for i := 0; i < ARENA_WIDTH; i++ {
@@ -29,11 +39,29 @@ func NewAIPlayer(name string, id int) (p *AIPlayer) {
 		arena[0][i] = true
 		arena[ARENA_WIDTH-1][i] = true
 	}
-	p.arena = arena
+	return arena
+}
 
-	//printMap(arena)
+func (p *AIPlayer) Score() int {
+	return p.score
+}
 
-	return p
+func (p *AIPlayer) IncScore() {
+	p.score++
+}
+
+func (p *AIPlayer) Reset() {
+	p.arena = buildMap()
+	p.alive = true
+	p.moves = []Move{getStartingSpot(p.index)}
+}
+
+func (p *AIPlayer) Alive() bool {
+	return p.alive
+}
+
+func (p *AIPlayer) SetAlive(alive bool) {
+	p.alive = alive
 }
 
 func printMap(arena [][]bool) {

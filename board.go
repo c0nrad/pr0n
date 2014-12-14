@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 
 	"github.com/nsf/termbox-go"
@@ -109,7 +110,6 @@ func drawPlayer(p Player) {
 	termbox.SetCell(shaft1.x, shaft1.y, penisCharacter(shaft1.d, SHAFT), termbox.ColorDefault, termbox.ColorDefault)
 	termbox.SetCell(shaft2.x, shaft2.y, penisCharacter(shaft2.d, SHAFT), termbox.ColorDefault, termbox.ColorDefault)
 	termbox.SetCell(balls.x, balls.y, penisCharacter(balls.d, BALL), termbox.ColorDefault, termbox.ColorDefault)
-
 	termbox.SetCell(trail.x, trail.y, penisCharacter(trail.d, TRAIL), Rainbow[rIndex], termbox.ColorDefault)
 
 	rIndex++
@@ -124,10 +124,11 @@ func lFill(in string, l int) string {
 func drawStats(ts int, players []Player) {
 	for _, player := range players {
 		x := ARENA_WIDTH + 1
-		y := 1 + player.Index()*WINDOW_HEIGHT/4
+		y := 1 + player.Index()*ARENA_HEIGHT/4
 		prevMove := player.PrevMove(0)
-		drawLineAt([]byte(lFill(player.Name(), WINDOW_WIDTH-ARENA_WIDTH)), y, x)
+		drawLineAt([]byte(lFill(player.Name()+" ("+strconv.Itoa(player.Score())+")", WINDOW_WIDTH-ARENA_WIDTH)), y, x)
 		drawLineAt([]byte(lFill(prevMove.String(), WINDOW_WIDTH-ARENA_WIDTH)), y+1, x)
+
 	}
 
 }

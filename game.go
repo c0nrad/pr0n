@@ -8,51 +8,98 @@ import (
 )
 
 type Game struct {
-	players      []Player
-	alivePlayers []Player
-	//board   Board
+	players []Player
 }
 
-func (g *Game) IsGameOver() bool {
-	return false
+func NewGame(players []Player) (g *Game) {
+	g = new(Game)
+	g.players = players
+	return g
 }
 
-func (g *Game) play() Player {
-	g.alivePlayers = g.players
+func (g *Game) AddPlayer(p Player) {
+	if len(g.players) >= 4 {
+		log.Println("[-] Games can only handle 4 players at a time!")
+		return
+	}
 
-	step := -1
-	for {
-		step++
-		time.Sleep(50 * time.Millisecond)
+	g.players = append(g.players, p)
+}
 
-		if len(g.alivePlayers) == 1 {
-
-			return g.alivePlayers[0]
+func (g *Game) Winner() Player {
+	countAlivePlayers := 0
+	var alivePlayer Player
+	for _, player := range g.players {
+		if player.Alive() {
+			countAlivePlayers++
+			alivePlayer = player
 		}
+	}
 
-		for playerIndex := 0; playerIndex < len(g.alivePlayers); playerIndex++ {
-			player := g.alivePlayers[playerIndex]
-
-			move := player.NextMove()
-			g.broadcastMove(playerIndex, move)
-			drawPlayer(player)
-
-			if !g.validMove(player) {
-				g.alivePlayers = append(g.alivePlayers[0:playerIndex], g.alivePlayers[playerIndex+1:]...)
-				break
-			}
-		}
-		log.Println(len(g.alivePlayers), len(g.players))
-		drawStats(step, g.players)
-		termbox.Sync()
-
+	if countAlivePlayers == 1 {
+		return alivePlayer
 	}
 
 	return nil
 }
 
+func (g *Game) ResetPlayers() {
+	for _, player := range g.players {
+		player.Reset()
+	}
+}
+
+func (g *Game) play() {
+
+	for {
+		winner := g.playRound()
+		winner.IncScore()
+		waitOnInput()
+		g.ResetPlayers()
+		drawBoard()
+	}
+}
+
+func (g *Game) playRound() Player {
+
+	step := -1
+
+	// learn starting moves
+	for i, player := range g.players {
+		g.broadcastMove(i, player.PrevMove(0))
+	}
+
+	for g.Winner() == nil {
+		step++
+		time.Sleep(50 * time.Millisecond)
+
+		for playerIndex, player := range g.players {
+
+			// Get the player move. Incase it's a quit or something.
+			move := player.NextMove()
+
+			if player.Alive() {
+				g.broadcastMove(playerIndex, move)
+				drawPlayer(player)
+
+				if !g.validMove(player) {
+					player.SetAlive(false)
+					break
+				}
+			}
+		}
+		drawStats(step, g.players)
+		termbox.Sync()
+
+	}
+
+	return g.Winner()
+
+	return nil
+}
+
 func (g *Game) broadcastMove(p int, move Move) {
-	for _, player := range g.alivePlayers {
+	for _, player := range g.players {
 		player.RecordMove(p, move)
 	}
 }
@@ -61,7 +108,6 @@ func (g *Game) validMove(p Player) bool {
 	lastMove := p.PrevMove(0)
 
 	if lastMove.x <= 0 || lastMove.y <= 0 || lastMove.x >= ARENA_WIDTH-1 || lastMove.y >= ARENA_HEIGHT-1 {
-		log.Println("Hit a wall")
 		return false
 	}
 
@@ -73,7 +119,6 @@ func (g *Game) validMove(p Player) bool {
 
 		for _, otherMove := range otherMoves {
 			if otherMove.x == lastMove.x && otherMove.y == lastMove.y {
-				log.Println("Hit a player")
 				return false
 			}
 		}
