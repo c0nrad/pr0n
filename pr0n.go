@@ -1,133 +1,86 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
+	"log"
+	"os"
 
 	"github.com/nsf/termbox-go"
 )
 
 const (
-	WINDOW_WIDTH  = 80
-	WINDOW_HEIGHT = 25
+	ARENA_WIDTH  = 80
+	ARENA_HEIGHT = 25
+
+	WINDOW_WIDTH  = 100
+	WINDOW_HEIGHT = 30
 )
 
-type Direction int
-type Component int
+var inputBuffer chan termbox.Event
 
-const (
-	UP = iota
-	DOWN
-	LEFT
-	RIGHT
+func readInput() Move {
+	nextMove := Move{0, 0, NONE}
 
-	BALL
-	SHAFT
-	HEAD
-)
+	for {
+		select {
+		case ev := <-inputBuffer:
 
-type Move struct {
-	x, y int
-	d    Direction
-}
-
-type Player struct {
-	moves []Move
-}
-
-func (m *Move) String() string {
-	return fmt.Sprintf("(%d, %d)", m.x, m.y)
-}
-
-func penisCharacter(d Direction, c Component) rune {
-	switch c {
-	case BALL:
-		switch d {
-		case UP:
-			return rune('m')
-		case DOWN:
-			return rune('m')
-		case LEFT, RIGHT:
-			return rune('8')
-		}
-	case SHAFT:
-		switch d {
-		case LEFT, RIGHT:
-			return rune('=')
-		case UP, DOWN:
-			return rune('|')
-		}
-	case HEAD:
-		switch d {
-		case UP:
-			return rune('^')
-		case DOWN:
-			return rune('v')
-		case LEFT:
-			return rune('<')
-		case RIGHT:
-			return rune('>')
+			switch ev.Type {
+			case termbox.EventKey:
+				switch ev.Key {
+				case termbox.KeyEsc:
+					os.Exit(0)
+				case termbox.KeyArrowUp:
+					nextMove.d = UP
+				case termbox.KeyArrowRight:
+					nextMove.d = RIGHT
+				case termbox.KeyArrowDown:
+					nextMove.d = DOWN
+				case termbox.KeyArrowLeft:
+					nextMove.d = LEFT
+				}
+			}
+		default:
+			return nextMove
 		}
 	}
-	return rune('.')
+
+	return nextMove
 }
 
-// i=0 would be the most recent move
-func (p *Player) getMove(i int) Move {
-	if i+1 > len(p.moves) {
-		return Move{-1, -1, DOWN}
-	}
-	return p.moves[len(p.moves)-1-i]
-}
+func waitOnInput() termbox.Event {
+	done := false
+	for {
+		select {
+		case <-inputBuffer:
+			continue
+		default:
+			done = true
+			break
+		}
 
-func (p *Player) addMove(m Move) {
-	p.moves = append(p.moves, m)
-}
-
-func drawPlayer(p Player) {
-	head := p.getMove(0)
-	shaft1 := p.getMove(1)
-	shaft2 := p.getMove(2)
-	balls := p.getMove(3)
-	trail := p.getMove(4)
-	termbox.SetCell(head.x, head.y, penisCharacter(head.d, HEAD), termbox.ColorDefault, termbox.ColorDefault)
-	termbox.SetCell(shaft1.x, shaft1.y, penisCharacter(shaft1.d, SHAFT), termbox.ColorDefault, termbox.ColorDefault)
-	termbox.SetCell(shaft2.x, shaft2.y, penisCharacter(shaft2.d, SHAFT), termbox.ColorDefault, termbox.ColorDefault)
-	termbox.SetCell(balls.x, balls.y, penisCharacter(balls.d, BALL), termbox.ColorDefault, termbox.ColorDefault)
-	termbox.SetCell(trail.x, trail.y, rune('.'), termbox.ColorDefault, termbox.ColorDefault)
-
-}
-
-func drawLine(line []byte, row int) {
-	for x, c := range bytes.Runes(line) {
-		termbox.SetCell(x, row, c, termbox.ColorDefault, termbox.ColorDefault)
-	}
-}
-
-func debug(line []byte) {
-	for x, c := range bytes.Runes(line) {
-		termbox.SetCell(x, WINDOW_HEIGHT, c, termbox.ColorDefault, termbox.ColorDefault)
-	}
-}
-
-func drawBoard() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-
-	line := bytes.Repeat([]byte{'-'}, WINDOW_WIDTH)
-	drawLine(line, 0)
-
-	body := bytes.Repeat([]byte{' '}, WINDOW_WIDTH-2)
-	body = append([]byte{'|'}, body...)
-	body = append(body, byte('|'))
-	for i := 0; i < WINDOW_HEIGHT-2; i++ {
-		drawLine(body, i+1)
+		if done {
+			break
+		}
 	}
 
-	drawLine(line, WINDOW_HEIGHT-1)
-	termbox.Sync()
+	select {
+	case ev := <-inputBuffer:
+		return ev
+	}
+
+}
+
+func setupLogging() {
+	f, err := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.SetOutput(f)
 }
 
 func main() {
+	setupLogging()
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
@@ -135,44 +88,26 @@ func main() {
 	defer termbox.Close()
 	drawBoard()
 
-	var player Player
-	player.moves = []Move{Move{1, 1, RIGHT}, Move{2, 1, RIGHT}, Move{3, 1, RIGHT}, Move{4, 1, RIGHT}}
-	drawPlayer(player)
+	p1 := NewLocalPlayer("c0nrad", 0)
+	p2 := NewAIPlayer("Sylvia", 1)
+	p3 := NewAIPlayer("Thor", 2)
+	p4 := NewAIPlayer("Bae", 3)
+
 	termbox.Sync()
 
-loop:
-	for {
-		nextMove := player.getMove(0)
-		switch ev := termbox.PollEvent(); ev.Type {
-		case termbox.EventKey:
-			switch ev.Key {
-			case termbox.KeyEsc:
-				break loop
-			case termbox.KeyArrowUp:
-				nextMove.y -= 1
-				nextMove.d = UP
-				player.addMove(nextMove)
-			case termbox.KeyArrowRight:
-				nextMove.x += 1
-				nextMove.d = RIGHT
-				player.addMove(nextMove)
-			case termbox.KeyArrowDown:
-				nextMove.y += 1
-				nextMove.d = DOWN
-				player.addMove(nextMove)
-			case termbox.KeyArrowLeft:
-				nextMove.x -= 1
-				nextMove.d = LEFT
-				player.addMove(nextMove)
-			}
-		case termbox.EventResize:
-			drawBoard()
+	inputBuffer = make(chan termbox.Event, 100)
+	go func() {
+		for {
+			inputBuffer <- termbox.PollEvent()
 		}
+	}()
 
-		debug([]byte(nextMove.String()))
-		drawPlayer(player)
-		termbox.Sync()
+	pss := []Player{p1, p2, p3, p4}
+	g := Game{pss, pss}
 
-	}
+	waitOnInput()
+	g.play()
+	waitOnInput()
 
+	debug(("WINNER"))
 }
