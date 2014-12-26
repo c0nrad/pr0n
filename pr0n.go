@@ -20,7 +20,7 @@ var PORT = ":1337"
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	flag.StringVar(&HOST, "host", "localhost", "host to connect to")
+	flag.StringVar(&HOST, "host", "c0nrad.io", "host to connect to")
 	flag.StringVar(&PORT, "port", ":1337", "port number to connect to")
 	serverMode := flag.Bool("serve", false, "run in server move")
 	aiMode := flag.Bool("ai", false, "run in server move")
