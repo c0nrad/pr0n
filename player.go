@@ -1,80 +1,137 @@
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
 
-const (
-	UP = iota
-	DOWN
-	LEFT
-	RIGHT
-	NONE
-
-	BALL
-	SHAFT
-	HEAD
-	TRAIL
+	"github.com/nsf/termbox-go"
 )
 
-type Move struct {
-	x, y int
-	d    Direction
+type Player struct {
+	InputBuffer chan termbox.Event
+	Prev        Move
 }
-
-func (m *Move) String() string {
-	return fmt.Sprintf("(%d, %d, %d)", m.x, m.y, m.d)
-}
-
-type PlayerType int
 
 const (
-	LOCAL = iota
-	AI
-	NETWORK
+	PLAYER_DISPLAY_ON = true
 )
 
-var StartingSpots = []Move{
-	Move{ARENA_WIDTH / 4, ARENA_HEIGHT / 2, RIGHT},
-	Move{3 * ARENA_WIDTH / 4, ARENA_HEIGHT / 2, LEFT},
-	Move{ARENA_WIDTH / 2, ARENA_HEIGHT / 4, DOWN},
-	Move{ARENA_WIDTH / 2, 3 * ARENA_HEIGHT / 4, UP},
+func NewPlayer() (p Player) {
+	termbox.Flush()
+	p.InputBuffer = make(chan termbox.Event, 100)
+	go KeyboardListener(p.InputBuffer)
+	return
 }
 
-func getStartingSpot(index int) Move {
-	return StartingSpots[index]
+func KeyboardListener(input chan termbox.Event) {
+	for {
+		event := termbox.PollEvent()
+		if event.Type == termbox.EventKey && event.Key == termbox.KeyEsc {
+			os.Exit(0)
+		}
+		input <- event
+	}
+	panic("unreachable")
 }
 
-type Player interface {
+func (p *Player) NextMove() Move {
+	nextMove := Move{-1, -1, -1}
 
-	// Increase players score by one
-	IncScore()
+	for {
+		select {
+		case ev := <-p.InputBuffer:
+			switch ev.Type {
+			case termbox.EventKey:
+				switch ev.Key {
+				case termbox.KeyEsc, 'q', 'Q':
+					os.Exit(0)
+				case termbox.KeyArrowUp:
+					if p.Prev.D == DOWN {
+						continue
+					}
+					nextMove.D = UP
+				case termbox.KeyArrowRight:
+					if p.Prev.D == LEFT {
+						continue
+					}
+					nextMove.D = RIGHT
+				case termbox.KeyArrowDown:
+					if p.Prev.D == UP {
+						continue
+					}
+					nextMove.D = DOWN
+				case termbox.KeyArrowLeft:
+					if p.Prev.D == RIGHT {
+						continue
+					}
+					nextMove.D = LEFT
+				}
+				if nextMove.D != p.Prev.D { // only eat one event?
+					return nextMove
+				}
+			}
+		default:
+			return nextMove
+		}
+	}
 
-	// Players Score
-	Score() int
+	return nextMove
+}
 
-	// Clear moves and alive
-	Reset()
+func PlayLocal() {
+	conn, err := net.Dial("tcp", HOST+PORT)
+	if err != nil {
+		panic(err)
+	}
 
-	// Return the name of the player
-	Name() string
+	var d Display
+	if PLAYER_DISPLAY_ON {
+		d = NewDisplay()
+		d.DrawBoard()
+	}
 
-	// Returns the players index
-	Index() int
+	dec := json.NewDecoder(conn)
 
-	// Is the player still alive
-	Alive() bool
+	p := NewPlayer()
 
-	//
-	SetAlive(alive bool)
+	for {
+		var state State
+		err := dec.Decode(&state)
+		if err != nil {
+			panic(err)
+		}
 
-	// Return a list of all previous moves
-	Moves() []Move
+		if state.Step == 0 {
+			d.Reset()
+		}
 
-	// Get the next move from the player
-	NextMove() Move
+		if PLAYER_DISPLAY_ON {
+			d.UpdateState(state)
+			d.Sync()
+		} else {
+			fmt.Println("Recieved state", state)
+		}
 
-	// A convinience function, get the ith previous move
-	PrevMove(i int) Move
+		if state.IsGameOver() {
+			continue
+		}
 
-	// Tell the player about a previous move
-	RecordMove(player int, m Move)
+		p.Prev = state.Players[state.PlayerIndex].Move
+
+		if state.Players[state.PlayerIndex].Alive {
+			// If I am alive, send then ext move
+			nextDirection := p.NextMove()
+			if nextDirection.D != -1 { // we actually got a move...
+				nextMove := UpdateMove(nextDirection.D, p.Prev)
+				enc := json.NewEncoder(conn)
+				err = enc.Encode(nextMove)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+
+	}
 }
