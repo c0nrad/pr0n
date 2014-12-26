@@ -1,6 +1,6 @@
 run: build
 	reset
-	./pr0n
+	./pr0n --local
 
 ai: build
 	reset
@@ -8,6 +8,9 @@ ai: build
 
 build:
 	go build
+
+network:
+	./pr0n --host c0nrad.io --port :1337
 
 serve: build
 	./pr0n --serve

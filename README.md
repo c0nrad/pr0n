@@ -2,29 +2,38 @@
 
 Flying rainbow peni.
 
+Demo:
+https://www.youtube.com/watch?v=SMmvkLPJkAE
+
+Unstable.
+
 ## Install
 
 ```
-make
+make build
+make run
 ```
 
-By default it connects to c0nrad.io:1337 to play.
+By default it spawns a server and an AI to play.
 
-To play locally, open up three terminals
+To play networked mode, spawn a server on one machine:
 
-    make serve # Runs the server, give it a second to start up
-    make ai    # In the second terminal, load a bot
-    make       # This is the terminal you'll play with
+    ./pr0n --serve --host c0nrad.io --port :1337 --size 2
 
+Then have two people connect:
 
-## Run as a server
+    ./pr0n --host c0nrad.io --port :1337
 
-```
-make serve
-```
+## Options
 
-## Run as an AI
+    --ai: This client will play as a bot
+    --server: Run as a server
+    --host: connect/bind to this host
+    --port: connect/bind to this port
+    --local
 
-```
-make ai
-```
+## Contact
+
+c0nrad.io
+
+Enjoy :D

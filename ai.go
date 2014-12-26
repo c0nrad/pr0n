@@ -2,19 +2,20 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/rand"
 	"net"
+	"os"
+
+	"github.com/nsf/termbox-go"
 )
 
-const (
-	AI_DISPLAY_ON = true
-)
+var AI_DISPLAY_ON = true
 
 type AIPlayer struct {
-	arena [][]bool
-	prev  Move
+	arena   [][]bool
+	prev    Move
+	display Display
 }
 
 func NewAI() (AI AIPlayer) {
@@ -22,55 +23,71 @@ func NewAI() (AI AIPlayer) {
 	return AI
 }
 
+func (ai *AIPlayer) ReadState(conn net.Conn) (state State) {
+	dec := json.NewDecoder(conn)
+	err := dec.Decode(&state)
+	if err != nil {
+		ai.display.Debug("Error: Lost connection with server." + err.Error())
+		ai.WaitForInput()
+		os.Exit(1)
+	}
+	return state
+}
+
+func (ai *AIPlayer) SendMove(conn net.Conn, m Move) {
+	enc := json.NewEncoder(conn)
+	err := enc.Encode(m)
+	if err != nil {
+		ai.display.Debug("Error: Lost connection with server." + err.Error())
+		ai.WaitForInput()
+		os.Exit(1)
+	}
+}
+
+func (ai *AIPlayer) WaitForInput() {
+	termbox.PollEvent()
+}
+
 func RunAI() {
+	ai := NewAI()
+
+	if AI_DISPLAY_ON {
+		ai.display = NewDisplay()
+		ai.display.DrawBoard()
+	}
+
 	conn, err := net.Dial("tcp", HOST+PORT)
 	if err != nil {
-		panic(err)
+		ai.display.Debug("Error: Failed to connect to server:" + HOST + PORT + "\nm" + err.Error())
+		ai.WaitForInput()
+		os.Exit(1)
 	}
-
-	AI := NewAI()
-
-	var d Display
-	if AI_DISPLAY_ON {
-		d = NewDisplay()
-		d.DrawBoard()
-	}
-
-	dec := json.NewDecoder(conn)
 
 	for {
-		var state State
-		err := dec.Decode(&state)
-		if err != nil {
-			panic(err)
-		}
+		state := ai.ReadState(conn)
 
 		if state.Step == 0 {
-			d.Reset()
-			AI.Reset()
+			if AI_DISPLAY_ON {
+				ai.display.Reset()
+			}
+			ai.Reset()
 		}
 
-		AI.UpdateArena(state)
+		ai.UpdateArena(state)
 
 		if AI_DISPLAY_ON {
-			d.UpdateState(state)
-			d.Sync()
-		} else {
-			fmt.Println("Recieved state", state)
+			ai.display.UpdateState(state)
+			ai.display.Sync()
 		}
 
 		if state.IsGameOver() {
+			// The board will get reset on `if state.Step == 0`
 			continue
 		}
 
 		if state.Players[state.PlayerIndex].Alive {
-			// If I am alive, send then ext move
-			m := AI.NextMove(state)
-			enc := json.NewEncoder(conn)
-			err = enc.Encode(m)
-			if err != nil {
-				panic(err)
-			}
+			m := ai.NextMove(state)
+			ai.SendMove(conn, m)
 		}
 
 	}

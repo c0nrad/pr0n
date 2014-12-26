@@ -26,6 +26,7 @@ type PlayerState struct {
 	Name string
 	Move
 	Alive bool
+	Score int
 }
 
 func StateToJSON(s State) []byte {

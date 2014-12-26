@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
 
@@ -42,6 +43,7 @@ func (p *Player) NextMove() Move {
 	for {
 		select {
 		case ev := <-p.InputBuffer:
+			log.Println(ev)
 			switch ev.Type {
 			case termbox.EventKey:
 				switch ev.Key {
@@ -80,7 +82,16 @@ func (p *Player) NextMove() Move {
 	return nextMove
 }
 
-func PlayLocal() {
+func ReadState(conn net.Conn) (state State) {
+	dec := json.NewDecoder(conn)
+	err := dec.Decode(&state)
+	if err != nil {
+		panic(err)
+	}
+	return state
+}
+
+func Play() {
 	conn, err := net.Dial("tcp", HOST+PORT)
 	if err != nil {
 		panic(err)
@@ -92,16 +103,10 @@ func PlayLocal() {
 		d.DrawBoard()
 	}
 
-	dec := json.NewDecoder(conn)
-
 	p := NewPlayer()
 
 	for {
-		var state State
-		err := dec.Decode(&state)
-		if err != nil {
-			panic(err)
-		}
+		state := ReadState(conn)
 
 		if state.Step == 0 {
 			d.Reset()

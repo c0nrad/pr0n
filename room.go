@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	STEP_WAIT_MS = 100
-	ROOM_SIZE    = 2
+	STEP_WAIT_MS = 75
 )
 
 type Room struct {
@@ -29,6 +28,7 @@ type NetworkPlayer struct {
 	Moves       []Move
 	MoveChannel chan Move
 	Name        string
+	Score       int
 }
 
 func HandleRoom(room Room) {
@@ -57,6 +57,7 @@ func NewGame(connections []net.Conn) Game {
 		g.Players[i].MoveChannel = make(chan Move, 100)
 		g.Players[i].Moves = []Move{GetStartingSpot(i)}
 		g.Players[i].Name = "Player " + strconv.Itoa(i)
+		g.Players[i].Score = 0
 
 		go MoveListener(g.Players[i].Connection, g.Players[i].MoveChannel)
 	}
@@ -64,7 +65,6 @@ func NewGame(connections []net.Conn) Game {
 }
 
 func MoveListener(conn net.Conn, moveChannel chan Move) {
-	fmt.Println("MoveListner")
 	conn.SetDeadline(time.Time{})
 	dec := json.NewDecoder(conn)
 	for {
@@ -73,7 +73,6 @@ func MoveListener(conn net.Conn, moveChannel chan Move) {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("We recieved a move from the connection. Player", m)
 		moveChannel <- m
 	}
 }
@@ -84,6 +83,7 @@ func (g *Game) GetState(step int) (s State) {
 	for i := range g.Players {
 		players[i].Alive = g.Players[i].Alive
 		players[i].Name = g.Players[i].Name
+		players[i].Score = g.Players[i].Score
 
 		//return last move, for dead this may be previous
 		if players[i].Alive {
@@ -114,12 +114,12 @@ func (g *Game) Winner() int {
 
 func (g *Game) Play() {
 	g.Step = 1
-	fmt.Println(g.Winner(), "WINNTER")
 	for g.Winner() == -1 { // GameOver
 
 		prevState := g.GetState(g.Step - 1)
-		fmt.Println("Prev State", prevState)
-
+		if SERVER_DEBUG {
+			fmt.Println("Prev State", prevState)
+		}
 		for i, player := range g.Players {
 			prevState.PlayerIndex = i
 			out := StateToJSON(prevState)
@@ -141,7 +141,6 @@ func (g *Game) Play() {
 			for {
 				select {
 				case move := <-g.Players[i].MoveChannel:
-					fmt.Println("WE RECIEVED A MOVE", move)
 					// Only take direction, incase of fowl play, CACAWWWW
 					move = UpdateMove(move.D, g.Players[i].Moves[g.Step-1])
 					g.Players[i].Moves[g.Step] = move
@@ -159,9 +158,13 @@ func (g *Game) Play() {
 		g.Step++
 	}
 
-	// Game over, send last state
+	winner := g.Winner()
+	if winner != -2 {
+		g.Players[winner].Score++
+	}
+
+	// Game over, send last state, with updated score
 	prevState := g.GetState(g.Step - 1)
-	fmt.Println("Prev State", prevState)
 
 	for i, player := range g.Players {
 		prevState.PlayerIndex = i

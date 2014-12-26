@@ -5,17 +5,20 @@ import (
 	"net"
 )
 
+var SERVER_DEBUG = true
+
 func MatchMaker(newPlayers chan net.Conn) {
 	currentRoom := Room{}
 
 	for {
 		select {
 		case newPlayer := <-newPlayers:
-			fmt.Println("Server: Match macker has recieved a new player!")
+			if SERVER_DEBUG {
+				fmt.Println("Server: Match macker has recieved a new player!")
+			}
 			currentRoom.Connections = append(currentRoom.Connections, newPlayer)
 
 			if len(currentRoom.Connections) == ROOM_SIZE {
-				fmt.Println("HERE?")
 				go HandleRoom(currentRoom)
 				currentRoom = Room{}
 			}

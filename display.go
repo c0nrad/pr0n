@@ -23,6 +23,7 @@ const (
 type Display struct {
 	Moves              [][]Move
 	Names              []string
+	Scores             []int
 	PlayerRainbowIndex map[int]int
 }
 
@@ -35,6 +36,7 @@ func NewDisplay() (d Display) {
 	d.PlayerRainbowIndex = make(map[int]int)
 	d.Moves = make([][]Move, ROOM_SIZE)
 	d.Names = make([]string, ROOM_SIZE)
+	d.Scores = make([]int, ROOM_SIZE)
 	return d
 }
 
@@ -122,10 +124,11 @@ func (d *Display) DrawLineAt(line []byte, row, col int) {
 	}
 }
 
-func (d *Display) debug(line string) {
+func (d *Display) Debug(line string) {
 	for x, c := range bytes.Runes([]byte(line)) {
 		termbox.SetCell(x, ARENA_HEIGHT, c, termbox.ColorDefault, termbox.ColorDefault)
 	}
+	termbox.Flush()
 }
 
 func (d Display) DrawBoard() {
@@ -158,6 +161,7 @@ func PrevMove(offset int, moves []Move) Move {
 func (d *Display) UpdateState(state State) {
 	for i, player := range state.Players {
 		d.Names[i] = player.Name
+		d.Scores[i] = player.Score
 		if player.Alive {
 			d.Moves[i] = append(d.Moves[i], player.Move)
 		} else {
@@ -206,8 +210,8 @@ func lFill(in string, l int) string {
 func (d *Display) DrawPlayerStats(playerIndex int) {
 	moves := d.Moves[playerIndex]
 	x := ARENA_WIDTH + 1
-	y := 2 + playerIndex*ARENA_HEIGHT/4
+	y := 3 + playerIndex*ARENA_HEIGHT/4
 	prevMove := PrevMove(0, moves)
-	d.DrawLineAt([]byte(lFill(d.Names[playerIndex], WINDOW_WIDTH-ARENA_WIDTH)), y, x)
-	d.DrawLineAt([]byte(lFill(fmt.Sprintf("(%d, %d)", prevMove.X, prevMove.Y), WINDOW_WIDTH-ARENA_WIDTH)), y+1, x)
+	d.DrawLineAt([]byte(d.Names[playerIndex]+" ("+strconv.Itoa(d.Scores[playerIndex])+")"), y, x)
+	d.DrawLineAt([]byte(fmt.Sprintf("(%d, %d)", prevMove.X, prevMove.Y)), y+1, x)
 }
