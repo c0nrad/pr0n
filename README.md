@@ -2,7 +2,9 @@
 
 Flying rainbow peni.
 
-Demo:
+![Demo](demo.gif)
+
+Video Demo:
 https://www.youtube.com/watch?v=SMmvkLPJkAE
 
 Unstable.
