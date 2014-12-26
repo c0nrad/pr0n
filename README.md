@@ -5,11 +5,17 @@ Flying rainbow peni.
 ## Install
 
 ```
-make build
-./pr0n
+make
 ```
 
 By default it connects to c0nrad.io:1337 to play.
+
+To play locally, open up three terminals
+
+    make serve # Runs the server, give it a second to start up
+    make ai    # In the second terminal, load a bot
+    make       # This is the terminal you'll play with
+
 
 ## Run as a server
 
@@ -22,9 +28,3 @@ make serve
 ```
 make ai
 ```
-
-
-{
-    Step: 1,
-    Moves: [{X: 1, Y:1, D: 1}, {X:10, Y:10, D:1}]
-}
